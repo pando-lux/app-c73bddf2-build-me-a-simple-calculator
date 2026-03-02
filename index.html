@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .calculator {
+    background: #16213e;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    width: 320px;
+    max-width: 95vw;
+  }
+  .display {
+    background: #0f3460;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: right;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+  .expression {
+    color: #8899aa;
+    font-size: 14px;
+    min-height: 20px;
+    word-break: break-all;
+  }
+  .result {
+    color: #e4e4e4;
+    font-size: 36px;
+    font-weight: 300;
+    word-break: break-all;
+  }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  button {
+    border: none;
+    border-radius: 10px;
+    font-size: 20px;
+    padding: 18px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    font-family: inherit;
+  }
+  button:active { transform: scale(0.95); }
+  .btn-num {
+    background: #1a1a40;
+    color: #e4e4e4;
+  }
+  .btn-num:hover { background: #252560; }
+  .btn-op {
+    background: #e94560;
+    color: #fff;
+  }
+  .btn-op:hover { background: #ff6b81; }
+  .btn-clear {
+    background: #533483;
+    color: #fff;
+  }
+  .btn-clear:hover { background: #6a45a0; }
+  .btn-eq {
+    background: #0f3460;
+    color: #fff;
+    grid-column: span 2;
+  }
+  .btn-eq:hover { background: #1a4a7a; }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div class="display">
+    <div class="expression" id="expression"></div>
+    <div class="result" id="result">0</div>
+  </div>
+  <div class="buttons">
+    <button class="btn-clear" onclick="clearAll()">C</button>
+    <button class="btn-op" onclick="addOp('(')">(</button>
+    <button class="btn-op" onclick="addOp(')')">)</button>
+    <button class="btn-op" onclick="addOp('÷')">÷</button>
+    <button class="btn-num" onclick="addNum('7')">7</button>
+    <button class="btn-num" onclick="addNum('8')">8</button>
+    <button class="btn-num" onclick="addNum('9')">9</button>
+    <button class="btn-op" onclick="addOp('×')">×</button>
+    <button class="btn-num" onclick="addNum('4')">4</button>
+    <button class="btn-num" onclick="addNum('5')">5</button>
+    <button class="btn-num" onclick="addNum('6')">6</button>
+    <button class="btn-op" onclick="addOp('-')">−</button>
+    <button class="btn-num" onclick="addNum('1')">1</button>
+    <button class="btn-num" onclick="addNum('2')">2</button>
+    <button class="btn-num" onclick="addNum('3')">3</button>
+    <button class="btn-op" onclick="addOp('+')">+</button>
+    <button class="btn-num" onclick="addNum('0')">0</button>
+    <button class="btn-num" onclick="addNum('.')">.</button>
+    <button class="btn-eq" onclick="calculate()">=</button>
+  </div>
+</div>
+<script>
+  var expr = '';
+  var justCalculated = false;
+  var exprEl = document.getElementById('expression');
+  var resultEl = document.getElementById('result');
+
+  function updateDisplay() {
+    exprEl.textContent = expr;
+  }
+
+  function addNum(n) {
+    if (justCalculated) { expr = ''; justCalculated = false; }
+    if (n === '.' && expr.length > 0) {
+      var parts = expr.split(/[+\-×÷()]/);
+      var last = parts[parts.length - 1];
+      if (last.indexOf('.') !== -1) return;
+    }
+    expr += n;
+    updateDisplay();
+  }
+
+  function addOp(op) {
+    justCalculated = false;
+    if (op !== '(' && op !== ')' && expr.length > 0) {
+      var lastChar = expr[expr.length - 1];
+      if ('+-×÷'.indexOf(lastChar) !== -1) {
+        expr = expr.slice(0, -1);
+      }
+    }
+    expr += op;
+    updateDisplay();
+  }
+
+  function clearAll() {
+    expr = '';
+    justCalculated = false;
+    resultEl.textContent = '0';
+    exprEl.textContent = '';
+  }
+
+  function tokenize(s) {
+    var tokens = [];
+    var i = 0;
+    while (i < s.length) {
+      var ch = s[i];
+      if (ch === ' ') { i++; continue; }
+      if ('+-*/()'.indexOf(ch) !== -1) {
+        tokens.push(ch);
+        i++;
+      } else if ((ch >= '0' && ch <= '9') || ch === '.') {
+        var num = '';
+        while (i < s.length && ((s[i] >= '0' && s[i] <= '9') || s[i] === '.')) {
+          num += s[i]; i++;
+        }
+        tokens.push(parseFloat(num));
+      } else {
+        i++;
+      }
+    }
+    return tokens;
+  }
+
+  // Recursive descent parser for proper order of operations
+  function parse(tokens) {
+    var pos = { i: 0 };
+    var result = parseExpr(tokens, pos);
+    return result;
+  }
+
+  function parseExpr(tokens, pos) {
+    var left = parseTerm(tokens, pos);
+    while (pos.i < tokens.length && (tokens[pos.i] === '+' || tokens[pos.i] === '-')) {
+      var op = tokens[pos.i]; pos.i++;
+      var right = parseTerm(tokens, pos);
+      if (op === '+') left += right;
+      else left -= right;
+    }
+    return left;
+  }
+
+  function parseTerm(tokens, pos) {
+    var left = parseFactor(tokens, pos);
+    while (pos.i < tokens.length && (tokens[pos.i] === '*' || tokens[pos.i] === '/')) {
+      var op = tokens[pos.i]; pos.i++;
+      var right = parseFactor(tokens, pos);
+      if (op === '*') left *= right;
+      else {
+        if (right === 0) throw new Error('Division by zero');
+        left /= right;
+      }
+    }
+    return left;
+  }
+
+  function parseFactor(tokens, pos) {
+    if (tokens[pos.i] === '(') {
+      pos.i++;
+      var val = parseExpr(tokens, pos);
+      if (tokens[pos.i] === ')') pos.i++;
+      return val;
+    }
+    if (tokens[pos.i] === '-') {
+      pos.i++;
+      return -parseFactor(tokens, pos);
+    }
+    if (tokens[pos.i] === '+') {
+      pos.i++;
+      return parseFactor(tokens, pos);
+    }
+    var v = tokens[pos.i]; pos.i++;
+    return typeof v === 'number' ? v : 0;
+  }
+
+  function calculate() {
+    if (!expr) return;
+    try {
+      var sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+      var tokens = tokenize(sanitized);
+      if (tokens.length === 0) return;
+      var val = parse(tokens);
+      if (!isFinite(val)) throw new Error('Division by zero');
+      var display = parseFloat(val.toPrecision(12));
+      resultEl.textContent = display;
+      exprEl.textContent = expr + ' =';
+      expr = String(display);
+      justCalculated = true;
+    } catch (e) {
+      resultEl.textContent = 'Error';
+      expr = '';
+      justCalculated = false;
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key >= '0' && e.key <= '9') addNum(e.key);
+    else if (e.key === '.') addNum('.');
+    else if (e.key === '+') addOp('+');
+    else if (e.key === '-') addOp('-');
+    else if (e.key === '*') addOp('×');
+    else if (e.key === '/') { e.preventDefault(); addOp('÷'); }
+    else if (e.key === '(' || e.key === ')') addOp(e.key);
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') clearAll();
+    else if (e.key === 'Backspace') { expr = expr.slice(0, -1); updateDisplay(); }
+  });
+</script>
+</body>
+</html>
